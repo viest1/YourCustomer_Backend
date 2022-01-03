@@ -16,7 +16,7 @@ const CustomerSchema = new Schema({
     type: String,
   },
   breed: {type: {}, default: {label: '', value:''}},
-  size: {type: {}, default: {label: '', value:''}},
+  // size: {type: {}, default: {label: '', value:''}},
   gender: {type: {}, default: {label: '', value:''}},
   address: {
     type: String,

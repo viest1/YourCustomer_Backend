@@ -13,6 +13,7 @@ const VisitSchema = new Schema({
   extraPay: {},
   time: String,
   behavior: {},
+  size: String,
   comments: String,
   photo: String,
   customer: { type: mongoose.Types.ObjectId, required: true, ref: 'customer' },
