@@ -11,6 +11,32 @@ const { cloudinary } = require('../utils/cloudinary');
 
 //
 
+const repairSomething = async (req, res, next) => {
+  const userId = '';
+  let allVisit;
+  let allVisits;
+  // let users;
+  try {
+    allVisits = await Customer.find({breed: {label: 'frise bichon', value: 'frise bichon'}}).populate('visits').exec(async (err,customers) => {
+      for (const customer of customers) {
+        console.log(customer)
+        for (const visit of customer.visits) {
+          visit.premium = [{label: 'Premium', value: '5'},{label: 'Bichon', value: '10'}]
+          console.log(visit.premium)
+          await visit.save()
+        }
+      }
+    })
+    console.log('allVisits', allVisits)
+    // allVisits = allVisit.find({premium: {label: "No"}})
+  } catch (e) {
+    const error = new HttpError(e, 500);
+    return next(error);
+  }
+  // res.send({visits: thisCustomer.visits.map((item)=>item.toObject({getters:true}))})
+  res.send({ allVisits });
+};
+
 const changeDataAccount = async (req, res, next) => {
   const {email, name, password, userId, timestamp} = req.body
   const dataToChange = {email, name}
@@ -150,7 +176,6 @@ const addCustomer = async (req, res, next) => {
     birthday,
     gender,
     breed,
-    service,
     visit,
     hour,
     price,
@@ -203,7 +228,7 @@ const addCustomer = async (req, res, next) => {
     visit,
     hour,
     shop,
-    service,
+    service: price.value.split(' ')[1],
     price,
     premium,
     tip,
@@ -240,7 +265,7 @@ const addCustomer = async (req, res, next) => {
     return next(error);
   }
 
-  res.send({ message: 'hello', newCustomer });
+  res.send({ newCustomer });
 };
 
 const getVisits = async (req, res, next) => {
@@ -324,7 +349,6 @@ const addVisit = async (req, res, next) => {
     visit,
     hour,
     shop,
-    service,
     price,
     premium,
     tip,
@@ -364,7 +388,7 @@ const addVisit = async (req, res, next) => {
     visit,
     hour,
     shop,
-    service,
+    service: price.value.split(' ')[1],
     price,
     premium,
     tip,
@@ -422,7 +446,9 @@ const editVisit = async (req, res, next) => {
     }
   }
   body.photo = photo;
-  // body.size = body.price.value.split(' ')[2]
+  body.size = body.price.value.split(' ')[2]
+  body.service = body.price.value.split(' ')[1]
+  console.log(body)
 
 
   let visit;
@@ -494,7 +520,7 @@ const login = async (req, res, next) => {
     token = jwt.sign(
       { userId: existingUser.id, email: existingUser.email },
       `${process.env.JWT_KEY}`,
-      { expiresIn: '1h' }
+      { expiresIn: '30days' }
     );
   } catch (err) {
     const error = new HttpError(
@@ -573,7 +599,7 @@ const signup = async (req, res, next) => {
     token = jwt.sign(
       { userId: createdUser.id, email: createdUser.email },
       `${process.env.JWT_KEY}`,
-      { expiresIn: '1h' }
+      { expiresIn: '30days' }
     );
   } catch (err) {
     const error = new HttpError(
@@ -602,3 +628,4 @@ exports.getVisitsCustomer = getVisitsCustomer;
 exports.addVisit = addVisit;
 exports.changeDataAccount = changeDataAccount;
 exports.changePassword = changePassword;
+exports.repairSomething = repairSomething;

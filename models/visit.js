@@ -8,7 +8,7 @@ const VisitSchema = new Schema({
   hour: String,
   service: {},
   price: {},
-  premium: {},
+  premium: [{}],
   tip: String,
   extraPay: {},
   time: String,
