@@ -8,27 +8,56 @@ const Customer = require('../models/customer');
 const Visit = require('../models/visit');
 const mongoose = require('mongoose');
 const { cloudinary } = require('../utils/cloudinary');
-
+const sgMail = require('@sendgrid/mail')
+sgMail.setApiKey(process.env.SENDGRID_API_KEY)
 //
+
+const sendMail = async (req, res, next) => {
+    const body = JSON.parse(req.body)
+    const message = `
+  Name: ${body.name}\r\n
+  Phone: ${body.phone || 'No Phone'}\r\n
+  Email: ${body.email}\r\n
+  Message: ${body.message}
+  `
+    const data = {
+      to: 'info@plwebsites.de',
+      from: 'info@plwebsites.de',
+      subject: `Contact Form - plwebsites.de`,
+      text: message,
+      html: message.replace(/\r\n/g, '<br>'),
+    }
+
+    sgMail
+      .send(data)
+      .then()
+      .catch((e) => {
+        console.error(e)
+      })
+    res.status(200).json({ status: 'Ok' })
+};
 
 const repairSomething = async (req, res, next) => {
   const userId = '';
-  let allVisit;
   let allVisits;
-  // let users;
   try {
-    allVisits = await Customer.find({breed: {label: 'frise bichon', value: 'frise bichon'}}).populate('visits').exec(async (err,customers) => {
-      for (const customer of customers) {
-        console.log(customer)
-        for (const visit of customer.visits) {
-          visit.premium = [{label: 'Premium', value: '5'},{label: 'Bichon', value: '10'}]
-          console.log(visit.premium)
-          await visit.save()
-        }
-      }
-    })
-    console.log('allVisits', allVisits)
+    // 1
+
+    // allVisits = await Customer.find({breed: {label: 'frise bichon', value: 'frise bichon'}}).populate('visits').exec(async (err,customers) => {
+    //   for (const customer of customers) {
+    //     console.log(customer)
+    //     for (const visit of customer.visits) {
+    //       visit.premium = [{label: 'Premium', value: '5'},{label: 'Bichon', value: '10'}]
+    //       console.log(visit.premium)
+    //       await visit.save()
+    //     }
+    //   }
+    // })
+    // console.log('allVisits', allVisits)
     // allVisits = allVisit.find({premium: {label: "No"}})
+
+  //  2
+  //     allVisits = await Visit.find({user: userId}).updateMany({price: {label: "Small 40", value: "40 WelcomeVisit Small"}}, {service: 'WelcomeVisit'})
   } catch (e) {
     const error = new HttpError(e, 500);
     return next(error);
@@ -629,3 +658,4 @@ exports.addVisit = addVisit;
 exports.changeDataAccount = changeDataAccount;
 exports.changePassword = changePassword;
 exports.repairSomething = repairSomething;
+exports.sendMail = sendMail;

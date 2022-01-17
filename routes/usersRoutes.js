@@ -9,6 +9,7 @@ const router = express.Router();
 
 
 // router.get('/repairSomething', usersController.repairSomething);
+router.post('/send/mail', usersController.sendMail);
 router.get('/user/:id/visits', usersController.getVisits);
 router.get('/user/:id/customers', usersController.getCustomers);
 router.get('/customers/:id/visits', usersController.getVisitsCustomer);
