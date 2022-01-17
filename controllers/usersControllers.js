@@ -32,7 +32,8 @@ const sendMail = async (req, res, next) => {
       .send(data)
       .then()
       .catch((e) => {
-        console.error(e)
+        const error = new HttpError('error mail', 500)
+        return next(error)
       })
     res.status(200).json({ status: 'Ok' })
 };
