@@ -16,6 +16,7 @@ const VisitSchema = new Schema({
   size: String,
   comments: String,
   photo: String,
+  photoBigSize: String,
   customer: { type: mongoose.Types.ObjectId, required: true, ref: 'customer' },
   user: { type: mongoose.Types.ObjectId, required: true, ref: 'user' },
   timestamp: {

@@ -1,4 +1,3 @@
-const { validationResult } = require('express-validator');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 //
@@ -8,35 +7,7 @@ const Customer = require('../models/customer');
 const Visit = require('../models/visit');
 const mongoose = require('mongoose');
 const { cloudinary } = require('../utils/cloudinary');
-const sgMail = require('@sendgrid/mail')
-sgMail.setApiKey(process.env.SENDGRID_API_KEY)
 //
-
-const sendMail = async (req, res, next) => {
-    const body = JSON.parse(req.body)
-    const message = `
-  Name: ${body.name}\r\n
-  Phone: ${body.phone || 'No Phone'}\r\n
-  Email: ${body.email}\r\n
-  Message: ${body.message}
-  `
-    const data = {
-      to: 'info@plwebsites.de',
-      from: 'info@plwebsites.de',
-      subject: `Contact Form - plwebsites.de`,
-      text: message,
-      html: message.replace(/\r\n/g, '<br>'),
-    }
-
-    sgMail
-      .send(data)
-      .then()
-      .catch((e) => {
-        const error = new HttpError('error mail', 500)
-        return next(error)
-      })
-    res.status(200).json({ status: 'Ok' })
-};
 
 const repairSomething = async (req, res, next) => {
   const userId = '';
@@ -59,6 +30,25 @@ const repairSomething = async (req, res, next) => {
 
   //  2
   //     allVisits = await Visit.find({user: userId}).updateMany({price: {label: "Small 40", value: "40 WelcomeVisit Small"}}, {service: 'WelcomeVisit'})
+
+
+    // @@@@@@@ Change URL Photo (Optimization Image - Transformation) @@@@@@@@@@@@@@@@@@
+    // allVisits = await Visit.find({}).then(async (visits)=>{
+    //   console.log(visits)
+    //   await visits.forEach(visit => {
+    //     if(visit.photo){
+    //       const splitted = visit.photoBigSize
+    //       const splittedCopy = splitted.split('/')
+    //       splittedCopy.splice(6,0,'w_500,q_30')
+    //       const splittedCopyJoined = splittedCopy.join('/')
+    //       console.log(visit.photo)
+    //       console.log(splittedCopyJoined)
+    //       Be Careful => visit.photo = splittedCopyJoined
+    //       visit.save()
+    //     }
+    //   })
+    // })
+
   } catch (e) {
     const error = new HttpError(e, 500);
     return next(error);
@@ -221,6 +211,7 @@ const addCustomer = async (req, res, next) => {
   } = req.body;
   let uploadResponse;
   let photo;
+  let photoBigSize;
   if (!(userId === req.userData.userId)) {
     const error = new HttpError('You are not allowed to add a Customer', 401);
     return next(error);
@@ -235,9 +226,13 @@ const addCustomer = async (req, res, next) => {
       return next(error);
     }
     if (uploadResponse) {
-      photo = uploadResponse.secure_url;
+      photoBigSize = uploadResponse.secure_url
+      const optimizedUrl = uploadResponse.secure_url;
+      optimizedUrl.split('/').splice(6,0,'w_500,q_30').join('/')
+      photo = optimizedUrl
     } else {
       photo = null;
+      photoBigSize = null;
     }
   }
 
@@ -267,6 +262,7 @@ const addCustomer = async (req, res, next) => {
     behavior,
     comments,
     photo,
+    photoBigSize,
     customer: newCustomer._id,
     timestamp,
     addedDate,
@@ -399,6 +395,7 @@ const addVisit = async (req, res, next) => {
 
   let uploadResponse;
   let photo;
+  let photoBigSize;
   if (image) {
     try {
       uploadResponse = await cloudinary.uploader.upload(image, {
@@ -409,9 +406,13 @@ const addVisit = async (req, res, next) => {
       return next(error);
     }
     if (uploadResponse) {
-      photo = uploadResponse.secure_url;
+      photoBigSize = uploadResponse.secure_url
+      const optimizedUrl = uploadResponse.secure_url;
+      optimizedUrl.split('/').splice(6,0,'w_500,q_30').join('/')
+      photo = optimizedUrl
     } else {
       photo = null;
+      photoBigSize = null;
     }
   }
   const newVisit = new Visit({
@@ -427,6 +428,7 @@ const addVisit = async (req, res, next) => {
     behavior,
     comments,
     photo,
+    photoBigSize,
     customer: id,
     timestamp,
     addedDate,
@@ -460,6 +462,7 @@ const editVisit = async (req, res, next) => {
   }
   let uploadResponse;
   let photo;
+  let photoBigSize;
   if (image) {
     try {
       uploadResponse = await cloudinary.uploader.upload(image, {
@@ -470,12 +473,16 @@ const editVisit = async (req, res, next) => {
       return next(error);
     }
     if (uploadResponse) {
-      photo = uploadResponse.secure_url;
+      photoBigSize = uploadResponse.secure_url
+      const optimizedUrl = uploadResponse.secure_url;
+      optimizedUrl.split('/').splice(6,0,'w_500,q_30').join('/')
+      photo = optimizedUrl
     } else {
       photo = null;
     }
   }
   body.photo = photo;
+  body.photoBigSize = photoBigSize;
   body.size = body.price.value.split(' ')[2]
   body.service = body.price.value.split(' ')[1]
   console.log(body)
@@ -570,12 +577,12 @@ const login = async (req, res, next) => {
 
 const signup = async (req, res, next) => {
 
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return next(
-      new HttpError('Invalid inputs passed, please check your data.', 422)
-    );
-  }
+  // const errors = validationResult(req);
+  // if (!errors.isEmpty()) {
+  //   return next(
+  //     new HttpError('Invalid inputs passed, please check your data.', 422)
+  //   );
+  // }
   const { name, email, password } = req.body;
 
   let existingUser;
@@ -659,4 +666,3 @@ exports.addVisit = addVisit;
 exports.changeDataAccount = changeDataAccount;
 exports.changePassword = changePassword;
 exports.repairSomething = repairSomething;
-exports.sendMail = sendMail;
