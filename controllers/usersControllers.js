@@ -57,6 +57,20 @@ const repairSomething = async (req, res, next) => {
   res.send({ allVisits });
 };
 
+const getCustomer = async (req, res, next) => {
+  const userId = req.params.id;
+  const customerId = req.params.customerId
+  let customer;
+  try {
+    customer = await Customer.find({ user: userId, _id:customerId }).populate('visits');
+  } catch (e) {
+    const error = new HttpError(e, 500);
+    return next(error);
+  }
+  // res.send({visits: thisCustomer.visits.map((item)=>item.toObject({getters:true}))})
+  res.send(customer);
+};
+
 const changeDataAccount = async (req, res, next) => {
   const {email, name, password, userId, timestamp} = req.body
   const dataToChange = {email, name}
@@ -227,9 +241,11 @@ const addCustomer = async (req, res, next) => {
     }
     if (uploadResponse) {
       photoBigSize = uploadResponse.secure_url
-      const optimizedUrl = uploadResponse.secure_url;
-      optimizedUrl.split('/').splice(6,0,'w_500,q_30').join('/')
-      photo = optimizedUrl
+      const splitted = photoBigSize
+      const splittedCopy = splitted.split('/')
+      splittedCopy.splice(6,0,'w_500,q_30')
+      const splittedCopyJoined = splittedCopy.join('/')
+      photo = splittedCopyJoined
     } else {
       photo = null;
       photoBigSize = null;
@@ -407,9 +423,11 @@ const addVisit = async (req, res, next) => {
     }
     if (uploadResponse) {
       photoBigSize = uploadResponse.secure_url
-      const optimizedUrl = uploadResponse.secure_url;
-      optimizedUrl.split('/').splice(6,0,'w_500,q_30').join('/')
-      photo = optimizedUrl
+      const splitted = photoBigSize
+      const splittedCopy = splitted.split('/')
+      splittedCopy.splice(6,0,'w_500,q_30')
+      const splittedCopyJoined = splittedCopy.join('/')
+      photo = splittedCopyJoined
     } else {
       photo = null;
       photoBigSize = null;
@@ -474,9 +492,12 @@ const editVisit = async (req, res, next) => {
     }
     if (uploadResponse) {
       photoBigSize = uploadResponse.secure_url
-      const optimizedUrl = uploadResponse.secure_url;
-      optimizedUrl.split('/').splice(6,0,'w_500,q_30').join('/')
-      photo = optimizedUrl
+      console.log(photoBigSize)
+      const splitted = photoBigSize
+            const splittedCopy = splitted.split('/')
+            splittedCopy.splice(6,0,'w_500,q_30')
+            const splittedCopyJoined = splittedCopy.join('/')
+      photo = splittedCopyJoined
     } else {
       photo = null;
     }
@@ -485,7 +506,6 @@ const editVisit = async (req, res, next) => {
   body.photoBigSize = photoBigSize;
   body.size = body.price.value.split(' ')[2]
   body.service = body.price.value.split(' ')[1]
-  console.log(body)
 
 
   let visit;
@@ -557,7 +577,7 @@ const login = async (req, res, next) => {
     token = jwt.sign(
       { userId: existingUser.id, email: existingUser.email },
       `${process.env.JWT_KEY}`,
-      { expiresIn: '30days' }
+      { expiresIn: '2s' }
     );
   } catch (err) {
     const error = new HttpError(
@@ -571,7 +591,7 @@ const login = async (req, res, next) => {
     email: existingUser.email,
     token: token,
     name: existingUser.name,
-    exp: Date.now() + 1000 * 60 * 60 * 24 * 7
+    exp: Date.now() + 1000 * 60
   });
 };
 
@@ -666,3 +686,4 @@ exports.addVisit = addVisit;
 exports.changeDataAccount = changeDataAccount;
 exports.changePassword = changePassword;
 exports.repairSomething = repairSomething;
+exports.getCustomer = getCustomer;

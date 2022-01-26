@@ -9,22 +9,23 @@ const router = express.Router();
 
 
 // router.get('/repairSomething', usersController.repairSomething);
+router.post('/signup', [
+ check('name')
+   .not()
+   .isEmpty(),
+ check('email')
+   .normalizeEmail()
+   .isEmail(),
+ check('password').isLength({ min: 6 })
+], usersController.signup);
+router.post('/login', usersController.login);
+router.use(checkAuth)
+router.get('/user/:id/customer/:customerId', usersController.getCustomer)
 router.get('/user/:id/visits', usersController.getVisits);
 router.get('/user/:id/customers', usersController.getCustomers);
 router.get('/customers/:id/visits', usersController.getVisitsCustomer);
-router.post('/signup', [
- check('name')
-    .not()
-    .isEmpty(),
-  check('email')
-    .normalizeEmail()
-    .isEmail(),
-  check('password').isLength({ min: 6 })
-], usersController.signup);
-router.post('/login', usersController.login);
 router.post('/changeDataAccount', usersController.changeDataAccount);
 router.post('/changePassword', usersController.changePassword);
-router.use(checkAuth)
 router.patch('/customers/:id', usersController.editCustomer);
 router.post('/customers/add', usersController.addCustomer);
 router.post('/customers/:id', usersController.customerDetails);
