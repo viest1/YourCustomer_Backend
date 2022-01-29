@@ -577,7 +577,7 @@ const login = async (req, res, next) => {
     token = jwt.sign(
       { userId: existingUser.id, email: existingUser.email },
       `${process.env.JWT_KEY}`,
-      { expiresIn: '2s' }
+      { expiresIn: '1h' }
     );
   } catch (err) {
     const error = new HttpError(
@@ -591,7 +591,7 @@ const login = async (req, res, next) => {
     email: existingUser.email,
     token: token,
     name: existingUser.name,
-    exp: Date.now() + 1000 * 60
+    exp: Date.now() + 1000 * 60 * 60
   });
 };
 
