@@ -21,6 +21,11 @@ router.post('/signup', [
 ], usersController.signup);
 router.post('/login', usersController.login);
 
+// Verify Email
+router.patch('/verifyEmail', usersController.verifyEmail);
+router.post('/sendEmailToResetPassword', usersController.sendEmailToResetPassword);
+router.post('/setNewPassword', usersController.setNewPassword);
+
 // check Authorization
 router.use(checkAuth)
 

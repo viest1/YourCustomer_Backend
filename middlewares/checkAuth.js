@@ -10,6 +10,9 @@ module.exports = async(req, res, next) => {
     if (!token) throw new Error('Authorization failed!');
     const decodedToken = await jwt.verify(token, process.env.JWT_KEY);
 
+    // Verified Email?
+    if(decodedToken.verifiedEmail === false) throw new Error('Authorization failed!');
+
     // Check role allow
     console.log(roleAllow)
     const arrPath = req.path.split('/')

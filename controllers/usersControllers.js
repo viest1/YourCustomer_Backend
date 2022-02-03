@@ -7,8 +7,11 @@ const Customer = require('../models/customer');
 const Visit = require('../models/visit');
 const mongoose = require('mongoose');
 const { cloudinary } = require('../utils/cloudinary');
+const sgMail = require('@sendgrid/mail')
 //
+sgMail.setApiKey(process.env.SENDGRID_API_KEY)
 
+//
 const paypal = require("@paypal/checkout-server-sdk")
 const Environment =
   process.env.NODE_ENV === "production"
@@ -75,8 +78,187 @@ const proceedBuy = async (req, res) => {
   }
 }
 
+const sendEmailToResetPassword = async(req,res,next) => {
+  const {emailToResetPassword, timestamp} = req.body
+
+  let existingUser;
+  try{
+    existingUser = await User.findOne({email: emailToResetPassword})
+  } catch (e){
+    const error = new HttpError('something wrong 1', 500)
+    return next(error)
+  }
+
+  if (!existingUser) {
+    const error = new HttpError(
+      'something wrong 2',
+      500
+    );
+    return next(error);
+  }
 
 
+  if (!existingUser.verifiedEmail) {
+    const error = new HttpError(
+      'something wrong 3',
+      500
+    );
+    return next(error);
+  }
+
+  if(timestamp - existingUser.lastRequestResetPassword < 1000 * 30){
+    const error = new HttpError(
+      'something wrong 4',
+      500
+    );
+    return next(error);
+  }
+
+  try{
+    await User.findOneAndUpdate({email: emailToResetPassword},{lastRequestResetPassword: timestamp})
+  } catch (e){
+    const error = new HttpError('something wrong 1', 500)
+    return next(error)
+  }
+
+  let token;
+  try {
+    token = jwt.sign(
+      { userId: existingUser.id, email: existingUser.email, role: existingUser.role },
+      `${process.env.JWT_KEY}`,
+      { expiresIn: '1h' }
+    );
+  } catch (err) {
+    const error = new HttpError(
+      'Signing up failed, please try again later 1.',
+      500
+    );
+    return next(error);
+  }
+
+  // Sending E-Mail
+  const message = `
+  Link to Reset Password - Your Customer - https://your-customer.netlify.app/resetPassword/${token}
+  `
+
+  const data = {
+    to: existingUser.email,
+    from: 'info@plwebsites.de',
+    subject: `Link to Reset Password - Your Customer`,
+    text: message,
+    html: message.replace(/\r\n/g, '<br>'),
+  }
+
+  sgMail
+    .send(data)
+    .catch((e) => {
+      console.error(e)
+    })
+  console.log(data)
+  console.log('sent')
+
+  res.status(200).json({message: 'You sent e-mail with link to reset password!'})
+}
+
+const setNewPassword = async(req,res,next)=>{
+  const {passwordReset, tokenResetPassword} = req.body
+  console.log(passwordReset, tokenResetPassword)
+
+  let decodedToken;
+  try{
+    decodedToken = await jwt.verify(tokenResetPassword, process.env.JWT_KEY);
+  } catch (e){
+    const error = new HttpError('user not verified', 403)
+    return next(error)
+  }
+
+  let existingUser;
+  try {
+    existingUser = await User.findById(decodedToken.userId);
+  } catch (err) {
+    const error = new HttpError(
+      'Something wrong, please try again later.',
+      500
+    );
+    return next(error);
+  }
+
+  if (!existingUser) {
+    const error = new HttpError(
+      'User does not exist, try again.',
+      403
+    );
+    return next(error);
+  }
+  let hashedPassword;
+  try {
+    hashedPassword = await bcrypt.hash(passwordReset, 12);
+  } catch (err) {
+    const error = new HttpError(
+      'Could not create new password, please try again.',
+      500
+    );
+    return next(error);
+  }
+
+  let userChangedPassword;
+  try {
+    userChangedPassword = await User.findByIdAndUpdate(decodedToken.userId, {password: hashedPassword});
+  } catch (err) {
+    const error = new HttpError(
+      'Something wrong, please try again later.',
+      500
+    );
+    return next(error);
+  }
+
+  console.log(userChangedPassword)
+  console.log('changed')
+
+  res.json({
+    message: 'You changed password correctly!'
+  });
+}
+
+const verifyEmail = async(req,res, next) => {
+  const {tokenVerifyEmail} = req.body
+  let decodedToken;
+  try{
+    decodedToken = await jwt.verify(tokenVerifyEmail, process.env.JWT_KEY);
+  } catch (e){
+    const error = new HttpError('user not verified', 403)
+    return next(error)
+  }
+
+  try{
+    await User.findByIdAndUpdate(decodedToken.userId, {verifiedEmail:true}, {new:true})
+  } catch (e){
+    const error = new HttpError('not exist', 403)
+    return next(error)
+  }
+
+  const message = `
+  Your Account is Verified
+  `
+
+  const data = {
+    to: decodedToken.email,
+    from: 'info@plwebsites.de',
+    subject: `Your Account is Verified - YourCustomer`,
+    text: message,
+    html: message.replace(/\r\n/g, '<br>'),
+  }
+
+  sgMail
+    .send(data)
+    .catch((e) => {
+      console.error(e)
+    })
+  console.log(data)
+  console.log('sent')
+
+  res.status(200).json({message: 'You Verified Email Correct. Now Log in!'})
+}
 
 const repairSomething = async (req, res, next) => {
   const userId = '';
@@ -663,6 +845,10 @@ const login = async (req, res, next) => {
     );
     return next(error);
   }
+  if(existingUser.verifiedEmail === false) return next(new HttpError(
+    'You need verify email.',
+    403
+  ))
 
   let isValidPassword = false;
   try {
@@ -722,7 +908,7 @@ const signup = async (req, res, next) => {
     existingUser = await User.findOne({ email: email });
   } catch (err) {
     const error = new HttpError(
-      'Signing up failed, please try again later.',
+      'Signing up failed, please try again later 3.',
       500
     );
     return next(error);
@@ -751,13 +937,15 @@ const signup = async (req, res, next) => {
     name,
     email,
     password: hashedPassword,
+    verifiedEmail: false,
+    role: 'Basic'
   });
 
   try {
     await createdUser.save();
   } catch (err) {
     const error = new HttpError(
-      'Signing up failed, please try again later.',
+      'Signing up failed, please try again later 2.',
       500
     );
     return next(error);
@@ -766,21 +954,43 @@ const signup = async (req, res, next) => {
   let token;
   try {
     token = jwt.sign(
-      { userId: createdUser.id, email: createdUser.email, role: createdUser.role },
+      { userId: createdUser.id, email: createdUser.email, role: createdUser.role, verifiedEmail: createdUser.verifiedEmail },
       `${process.env.JWT_KEY}`,
       { expiresIn: '1h' }
     );
   } catch (err) {
     const error = new HttpError(
-      'Signing up failed, please try again later.',
+      'Signing up failed, please try again later 1.',
       500
     );
     return next(error);
   }
 
+  const message = `
+  Link to verify Account for YourCustomer  - https://your-customer.netlify.app/verifyEmail/${token}
+  `
+  const data = {
+    to: email,
+    from: 'info@plwebsites.de',
+    subject: `Link to verify Account - YourCustomer`,
+    text: message,
+    html: message.replace(/\r\n/g, '<br>'),
+  }
+
+  sgMail
+    .send(data)
+    // .then(() => {
+    //   return res.status(200).json({ status: 'Ok' })
+    // })
+    .catch((e) => {
+      console.error(e)
+    })
+  console.log(data)
+  console.log('sent')
+
   res
     .status(201)
-    .json({ userId: createdUser.id, email: createdUser.email, name: createdUser.name, token: token, role: createdUser.role, exp: Date.now() + 1000 * 60 * 60 });
+    .json({ userId: createdUser.id, email: createdUser.email, name: createdUser.name, role: createdUser.role });
 
 };
 
@@ -801,3 +1011,6 @@ exports.repairSomething = repairSomething;
 exports.getCustomer = getCustomer;
 exports.changeRoleOnAccount = changeRoleOnAccount;
 exports.proceedBuy = proceedBuy;
+exports.verifyEmail = verifyEmail;
+exports.sendEmailToResetPassword = sendEmailToResetPassword;
+exports.setNewPassword = setNewPassword;

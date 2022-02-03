@@ -12,6 +12,7 @@
   "license": "ISC",
   "dependencies": {
     "@paypal/checkout-server-sdk": "^1.0.3",
+    "@sendgrid/mail": "^7.6.0",
     "bcryptjs": "^2.4.3",
     "body-parser": "^1.19.0",
     "cloudinary": "^1.27.1",
