@@ -9,6 +9,75 @@ const mongoose = require('mongoose');
 const { cloudinary } = require('../utils/cloudinary');
 //
 
+const paypal = require("@paypal/checkout-server-sdk")
+const Environment =
+  process.env.NODE_ENV === "production"
+    ? paypal.core.LiveEnvironment
+    : paypal.core.SandboxEnvironment
+const paypalClient = process.env.NODE_ENV === "production" ?
+  new paypal.core.PayPalHttpClient(
+  new Environment(
+    process.env.PAYPAL_CLIENT_ID_LIVE,
+    process.env.PAYPAL_CLIENT_SECRET_LIVE
+  )) : new paypal.core.PayPalHttpClient(
+  new Environment(
+    process.env.PAYPAL_CLIENT_ID,
+    process.env.PAYPAL_CLIENT_SECRET
+  )
+)
+
+const storeItems = new Map([
+  [1, { price: 0.01, name: "Basic Type Account" }],
+  [2, { price: 0.02, name: "Premium Type Account" }],
+])
+
+const proceedBuy = async (req, res) => {
+  const request = new paypal.orders.OrdersCreateRequest()
+  const total = req.body.items.reduce((sum, item) => {
+    return sum + storeItems.get(item.id).price * item.quantity
+  }, 0)
+  console.log('proceed Buy ', req.body)
+  request.prefer("return=representation")
+  request.requestBody({
+    intent: "CAPTURE",
+    purchase_units: [
+      {
+        amount: {
+          currency_code: "EUR",
+          value: total,
+          breakdown: {
+            item_total: {
+              currency_code: "EUR",
+              value: total,
+            },
+          },
+        },
+        items: req.body.items.map(item => {
+          const storeItem = storeItems.get(item.id)
+          return {
+            name: storeItem.name,
+            unit_amount: {
+              currency_code: "EUR",
+              value: storeItem.price,
+            },
+            quantity: item.quantity,
+          }
+        }),
+      },
+    ],
+  })
+
+  try {
+    const order = await paypalClient.execute(request)
+    res.json({ id: order.result.id })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+}
+
+
+
+
 const repairSomething = async (req, res, next) => {
   const userId = '';
   let allVisits;
@@ -127,6 +196,48 @@ const changeDataAccount = async (req, res, next) => {
     userId: changedUser.id,
     email: changedUser.email,
     name: changedUser.name,
+  });
+};
+
+const changeRoleOnAccount = async (req, res, next) => {
+  const {email, role, userId, timestamp} = req.body
+  const dataToChange = {role}
+  console.log('changed new Role', role)
+  let existingUser;
+  try {
+    existingUser = await User.findById(userId);
+  } catch (err) {
+    const error = new HttpError(
+      'Something wrong, please try again later.',
+      500
+    );
+    return next(error);
+  }
+
+  if (!existingUser) {
+    const error = new HttpError(
+      'User does not exist, try again.',
+      403
+    );
+    return next(error);
+  }
+
+  let changedUser;
+  try {
+    changedUser = await User.findByIdAndUpdate(userId, dataToChange, {new: true});
+  } catch (err) {
+    const error = new HttpError(
+      'Something wrong, please try again later.',
+      500
+    );
+    return next(error);
+  }
+
+  res.json({
+    userId: changedUser.id,
+    email: changedUser.email,
+    name: changedUser.name,
+    role: changedUser.role,
   });
 };
 
@@ -544,7 +655,7 @@ const login = async (req, res, next) => {
     );
     return next(error);
   }
-
+  console.log(existingUser)
   if (!existingUser) {
     const error = new HttpError(
       'Invalid credentials, could not log you in.',
@@ -575,7 +686,7 @@ const login = async (req, res, next) => {
   let token;
   try {
     token = jwt.sign(
-      { userId: existingUser.id, email: existingUser.email },
+      { userId: existingUser.id, email: existingUser.email, role: existingUser.role },
       `${process.env.JWT_KEY}`,
       { expiresIn: '1h' }
     );
@@ -591,6 +702,7 @@ const login = async (req, res, next) => {
     email: existingUser.email,
     token: token,
     name: existingUser.name,
+    role: existingUser.role,
     exp: Date.now() + 1000 * 60 * 60
   });
 };
@@ -638,7 +750,7 @@ const signup = async (req, res, next) => {
   const createdUser = new User({
     name,
     email,
-    password: hashedPassword
+    password: hashedPassword,
   });
 
   try {
@@ -654,9 +766,9 @@ const signup = async (req, res, next) => {
   let token;
   try {
     token = jwt.sign(
-      { userId: createdUser.id, email: createdUser.email },
+      { userId: createdUser.id, email: createdUser.email, role: createdUser.role },
       `${process.env.JWT_KEY}`,
-      { expiresIn: '30days' }
+      { expiresIn: '1h' }
     );
   } catch (err) {
     const error = new HttpError(
@@ -668,7 +780,7 @@ const signup = async (req, res, next) => {
 
   res
     .status(201)
-    .json({ userId: createdUser.id, email: createdUser.email, name: createdUser.name, token: token });
+    .json({ userId: createdUser.id, email: createdUser.email, name: createdUser.name, token: token, role: createdUser.role, exp: Date.now() + 1000 * 60 * 60 });
 
 };
 
@@ -687,3 +799,5 @@ exports.changeDataAccount = changeDataAccount;
 exports.changePassword = changePassword;
 exports.repairSomething = repairSomething;
 exports.getCustomer = getCustomer;
+exports.changeRoleOnAccount = changeRoleOnAccount;
+exports.proceedBuy = proceedBuy;

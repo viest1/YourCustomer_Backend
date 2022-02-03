@@ -6,6 +6,7 @@ const userSchema = new Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true, minlength: 6 },
+  role: { type: String, default: 'Basic'},
   customers: [{type: mongoose.Types.ObjectId, required: true, ref: 'customer'}],
   visits: [{type: mongoose.Types.ObjectId, required: true, ref: 'visit'}],
  });
