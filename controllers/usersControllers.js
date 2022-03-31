@@ -514,7 +514,8 @@ const addCustomer = async (req, res, next) => {
     shop,
     timestamp,
     addedDate,
-    userId
+    userId,
+    generalComment
   } = req.body;
   let uploadResponse;
   let photo;
@@ -555,6 +556,7 @@ const addCustomer = async (req, res, next) => {
     gender,
     breed,
     timestamp,
+    generalComment,
     user: userId
   });
 
@@ -590,8 +592,8 @@ const addCustomer = async (req, res, next) => {
   let existingUser;
   try {
     existingUser = await User.findById(userId);
-    await existingUser.customers.push(newCustomer);
-    await existingUser.visits.push(newVisit);
+    existingUser.customers.push(newCustomer);
+    existingUser.visits.push(newVisit);
     await newCustomer.save();
     await existingUser.save();
   } catch (e) {
@@ -874,7 +876,7 @@ const login = async (req, res, next) => {
     token = jwt.sign(
       { userId: existingUser.id, email: existingUser.email, role: existingUser.role },
       `${process.env.JWT_KEY}`,
-      { expiresIn: '1h' }
+      { expiresIn: '30d' }
     );
   } catch (err) {
     const error = new HttpError(
@@ -889,7 +891,7 @@ const login = async (req, res, next) => {
     token: token,
     name: existingUser.name,
     role: existingUser.role,
-    exp: Date.now() + 1000 * 60 * 60
+    exp: Date.now() + 1000 * 60 * 60 * 24 * 30
   });
 };
 

@@ -26,6 +26,7 @@ const CustomerSchema = new Schema({
   },
   visits: [{ type: mongoose.Types.ObjectId, required: true, ref: 'visit' }],
   user: { type: mongoose.Types.ObjectId, required: true, ref: 'user' },
+  generalComment: String,
   timestamp: {
     type: Number,
   },
